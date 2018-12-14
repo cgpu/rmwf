@@ -1,0 +1,3 @@
+name: University of Waterloo Metabolomics Workflow
+description: This is the metabolomcis data analysis workflow used in Pawliszyn Research Group from University of Waterloo
+create_dir: true
