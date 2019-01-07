@@ -1,5 +1,5 @@
 ---
-title: "compMS2Miner workflow -- untitled"
+title: "compMS2Miner workflow"
 author: "Mr. Happy"
 date: '`r format(Sys.Date(), "%B %e, %Y")`'
 output: pdf_document
