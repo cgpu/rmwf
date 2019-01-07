@@ -1,0 +1,94 @@
+---
+title: "Compare Software"
+author: "Miao Yu"
+date: "August 16, 2016"
+output:
+  html_document:
+    df_print: paged
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(enviGCMS)
+# get the xcmsset object from demo data
+path <- system.file("extdata/", package = "rmwf")
+```
+
+## XCMS
+
+```{r xcms}
+xcms <- enviGCMS::getdata(path,pmethod = "hplchqtof",minfrac = 1)
+library(xcms)
+library(Rmpi)
+library(stringr)
+getrtmz <- function(path,index = NULL){
+  load('para.RData')
+peakwidth <- as.numeric(unlist(str_extract_all(para[grepl('peakwidth',para)],'\\d+\\.*\\d*')))
+ppm <- as.numeric(unlist(str_extract_all(para[grepl('ppm',para)],'\\d+')))
+noise <- as.numeric(unlist(str_extract_all(para[grepl('noise',para)],'\\d+')))
+snthresh <- as.numeric(unlist(str_extract_all(para[grepl('snthresh',para)],'\\d+')))
+mzdiff <- as.numeric(unlist(str_extract_all(para[grepl('mzdiff',para)],'\\d+\\.*\\d*')))
+prefilter <- as.numeric(unlist(str_extract_all(para[grepl('prefilter',para)],'\\d+\\.*\\d*')))
+integrate <- as.numeric(unlist(str_extract_all(para[grepl('integrate',para)],'\\d+')))
+profStep <- round(as.numeric(unlist(str_extract_all(para[grepl('profStep',para)],'\\d+\\.*\\d*'))),1)
+center <- as.numeric(unlist(str_extract_all(para[grepl('center',para)],'\\d+')))
+response <- as.numeric(unlist(str_extract_all(para[grepl('response',para)],'\\d+')))
+gapInit <- as.numeric(unlist(str_extract_all(para[grepl('gapInit',para)],'\\d+\\.*\\d*')))
+gapExtend <- as.numeric(unlist(str_extract_all(para[grepl('gapExtend',para)],'\\d+\\.*\\d*')))
+factorDiag <- as.numeric(unlist(str_extract_all(para[grepl('factorDiag',para)],'\\d+')))
+factorGap <- as.numeric(unlist(str_extract_all(para[grepl('factorGap',para)],'\\d+')))
+localAlignment <- as.numeric(unlist(str_extract_all(para[grepl('localAlignment',para)],'\\d+')))
+bw <- as.numeric(unlist(str_extract_all(para[grepl('bw',para)],'\\d+\\.*\\d*')))
+mzwid <- as.numeric(unlist(str_extract_all(para[grepl('mzwid',para)],'\\d+\\.*\\d*')))
+minfrac <- as.numeric(unlist(str_extract_all(para[grepl('minfrac',para)],'\\d+\\.*\\d*')))
+minsamp <- as.numeric(unlist(str_extract_all(para[grepl('minsamp',para)],'\\d+')))
+max <-  as.numeric(unlist(str_extract_all(para[grepl('max',para)],'\\d+')))
+  files <- list.files(path,full.names = T,recursive = T)
+  if(!is.null(index)){
+    files <- files[index]
+  }
+  xset <- xcmsSet(files,
+  method = "centWave",
+  peakwidth       = peakwidth,
+  ppm             = 15,
+  noise           = noise,
+  snthresh        = snthresh,
+  mzdiff          = mzdiff,
+  prefilter       = prefilter,
+  mzCenterFun     = "wMean",
+  integrate       = integrate,
+  fitgauss        = FALSE,
+  verbose.columns = FALSE)
+xset <- retcor( 
+  xset,
+  method         = "obiwarp",
+  plottype       = "none",
+  distFunc       = "cor_opt",
+  profStep       = profStep,
+  center         = center,
+  response       = response,
+  gapInit        = gapInit,
+  gapExtend      = gapExtend,
+  factorDiag     = factorDiag,
+  factorGap      = factorGap,
+  localAlignment = localAlignment)
+xset <- group( 
+  xset,
+  method  = "density",
+  bw      = bw,
+  mzwid   = mzwid,
+  minfrac = minfrac,
+  minsamp = minsamp,
+  max     = max)
+
+xset <- fillPeaks(xset)
+return(xset)
+}
+srm2 <- getrtmz(path)
+```
+

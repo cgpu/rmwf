@@ -1,0 +1,4 @@
+name: MSSM Metabolomics Workflow
+description: >
+   This is the metabolomcis data analysis workflow used in the Senator Frank R. Lautenberg Environmental Health Sciences Laboratory, Icahn School Medicine at Mount Sinai
+create_dir: true
