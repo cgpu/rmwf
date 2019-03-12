@@ -16,7 +16,11 @@ sessionInfo()
 
 ![logo](logo.png)
 
-# Optimization
+# Optimization and peak picking
+
+## Optimization
+
+This chunk should run first to generate IPO parameters. We suggest a computer with large memory to run this chunk.
 
 ```{r IPOpos,eval=FALSE}
 library(IPO)
@@ -48,14 +52,17 @@ save(para,file = 'para.RData')
 sessionInfo()
 ```
 
-# Wrap function
+## Wrap function for peak picking
 
-```{r eval=T}
+This chunk could be run after you have `para.RData` from last chunk.
+
+```{r eval=F}
 library(xcms)
 library(Rmpi)
 library(stringr)
+# here we use pre-optimized IPO parameters
+data('para')
 getrtmz <- function(path,index = NULL){
-  load('para.RData')
 peakwidth <- as.numeric(unlist(str_extract_all(para[grepl('peakwidth',para)],'\\d+\\.*\\d*')))
 ppm <- as.numeric(unlist(str_extract_all(para[grepl('ppm',para)],'\\d+')))
 noise <- as.numeric(unlist(str_extract_all(para[grepl('noise',para)],'\\d+')))
@@ -119,23 +126,156 @@ return(xset)
 }
 ```
 
-# Peaks list
+## Peaks list
+
+This chunk is used to generate peaks list and related csv, xcmsset object, xcmsEIC object for further analysis.
 
 ```{r eval=F}
 library(enviGCMS)
 # get the xcmsset object from demo data
-path <- system.file("extdata/", package = "rmwf")
+path <- system.file("extdata/data", package = "rmwf")
 # use your own data
 # path <- 'path/to/your/file'
 srm <- getrtmz(path)
-# back up the xcmsset object
-save(srm,file = 'srm.Rdata')
-# get the number
-npeaks <- nrow(srm@groups)
-# get the EIC, boxplot and diffreport, eixmax should be equal to the numbers of peaks groups in the pos objects 
-report <- CAMERA::annotateDiffreport(srm,filebase = 'peaklistneg',metlin = T, eicmax = npeaks, classeic = srm@phenoData$class)
-# save the report as a csv file
-write.csv(report,file = 'all.csv')
-# get the csv file for Metaboanalyst.ca
-enviGCMS::getupload(srm,name = 'metabo')
+# back up the xcmsset object, xcmsEIC object and peak list
+mzrt <- getmzrt(srm, name = 'srm', eic = T, type = 'mapo')
 ```
+
+# Data pre-processing
+
+## Peaks filtering
+
+Peaks list could be processed by experimental design in thie chunk.
+
+```{r pf}
+library(enviGCMS)
+data(mzrt)
+# get the mean and rsd for each group
+mzrtm <- enviGCMS::getdoe(mzrt)
+gm <- mzrtm$groupmean
+gr <- mzrtm$grouprsd
+# find the blank group and pool QC group, demo data only have matrix blank
+srm <- grepl('plasma',colnames(gm))
+blk <- grepl('matrix',colnames(gm))
+# pqc <- grepl('pool',colnames(gm))
+# filter by pool QC and blank's group mean intensity(pool QC should larger than three times of blank), return numbers and index
+# in demo data, use sample average intensity for each peak
+sum(indexmean <- apply(gm,1,function(x) all(x[srm]>= 3*x[blk])))
+# filt by pool qc rsd%, return numbers and index
+# in demo data, use sample average intensity for each peak
+rsdcf <- 30
+sum(indexrsd <- apply(gr,1,function(x) ifelse(is.na(x[srm]),T,x[srm]<rsdcf)))
+# overlap with rsd% and mean filter
+sum(index <- indexmean&indexrsd)
+
+# new list, update group and remove pool qc/blk and save the new csv file
+qcindex <- grepl('blank',mzrt$group) | grepl('pool',mzrt$group)
+mzrtfilter <- enviGCMS::getfilter(mzrt,rowindex = index,colindex = !qcindex, name = 'lif', type = 'm')
+```
+
+## Data visulization
+
+```{r}
+# you could load you eic and xset object, here is the demo data
+data("srmeic")
+data("srmxset")
+# EIC for m/z 107.0502 and retention time 102.6s
+plot(srmeic,srm,groupidx = 'M107.0502T102.6')
+# PCA
+enviGCMS::plotpca(data = mzrtfilter$data,lv = mzrtfilter$group)
+# mzrt plot
+enviGCMS::plotmr(mzrtfilter)
+# RSD plot
+enviGCMS::plotrsd(mzrtfilter)
+# density plot
+enviGCMS::plotden(mzrtfilter$data,lv=mzrtfilter$group)
+# heatmap
+enviGCMS::plothm(mzrtfilter$data,lv=factor(mzrtfilter$group),index = c(1:20))
+```
+
+## Normalization (Optional)
+
+```{r ba}
+# visulize the batch effect
+mzrtsim::rlaplot(mzrt$data,lv = factor(mzrt$group))
+mzrtsim::ridgesplot(mzrt$data,lv = factor(mzrt$group))
+# get the simulation data and test on NOREVA
+sim <- mzrtsim::simmzrt(mzrt$data)
+mzrtsim::simdata(sim)
+# correct the batch effect by sva and no sv found
+mzrtcor <- mzrtsim::svacor(mzrt$data,lv = factor(mzrt$group))
+# visulize the batch effect correction
+# li <- mzrtsim::limmaplot(mzrtcor,lv = factor(mzrt$group$class))
+# return the corrected data
+# mzrt$data <- mzrtcor$dataCorrected
+```
+
+# Statistical analysis
+
+```{r sa}
+library(caret)
+## Spliting data
+trainIndex <- createDataPartition(mzrtfilter$group, p = .5, 
+                                  list = FALSE, 
+                                  times = 1)
+## Get the training and testing datasets
+train <- mzrtfilter$data[, trainIndex]
+train <- cbind(Y=mzrtfilter$group[trainIndex],t(train))
+test  <- mzrtfilter$data[,-trainIndex]
+test  <- cbind(Y=mzrtfilter$group[-trainIndex],t(test))
+## Train the model(random forest)
+rfFit <- train(Y ~ ., data = train, 
+                 method = "rf")
+## find the top 10 important variables
+Imp <- varImp(rfFit)
+plot(Imp, top = 10)
+# # Set the cross validation method
+# fitControl <- trainControl(## 10-fold CV
+#                            method = "repeatedcv",
+#                            number = 10,
+#                            ## repeated ten times
+#                            repeats = 10)
+## fit another model with cross validation
+# lmFit <- train(Y ~ ., data = train[,c(1:5)], 
+#                  method = "glm", 
+#                  trControl = fitControl, 
+#                  verbose = FALSE)
+# ANOVA analysis for model selection
+# anova(rfFit,lmFit)
+```
+
+# Annotation
+
+```{r anno, eval=F}
+library(xMSannotator)
+data("adduct_weights")
+data <- mzrtfilter$data
+mz <- mzrtfilter$mz
+time <- mzrtfilter$rt
+data <- as.data.frame(cbind(mz, time, data))
+data <- unique(data)
+xMSannotator::multilevelannotation(
+                                        dataA = data,
+                                        max.mz.diff = 5,
+                                        mode = 'pos',
+                                        outloc = 'anno',
+                                        db_name = 'HMDB',
+                                        adduct_weights = adduct_weights,
+                                        filter.by = c("M+H"),
+                                        mass_defect_mode = 'pos',
+                                        num_nodes = 4
+)
+```
+
+# PMD analysis
+
+```{r pmd, eval=F}
+options(shiny.maxRequestSize = 100*1024^2)
+pmd::runPMD()
+```
+
+Oxidation of Lorcainide.385.1687
+
+
+
+
