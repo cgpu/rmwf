@@ -11,6 +11,7 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE,cache = T,message=T,warning=F)
+library(rmwf)
 sessionInfo()
 ```
 
@@ -180,7 +181,7 @@ mzrtfilter <- enviGCMS::getfilter(mzrt,rowindex = index,colindex = !qcindex, nam
 data("srmeic")
 data("srmxset")
 # EIC for m/z 107.0502 and retention time 102.6s
-plot(srmeic,srm,groupidx = 'M107.0502T102.6')
+plot(srmeic,srmxset,groupidx = 'M107.0502T102.6')
 # PCA
 enviGCMS::plotpca(data = mzrtfilter$data,lv = mzrtfilter$group)
 # mzrt plot
