@@ -278,5 +278,44 @@ pmd::runPMD()
 Oxidation of Lorcainide.385.1687
 
 
+# Connetion with other online database
 
+## ISA for metabolights
+
+```{r isa, eval=F}
+# Risa package, pls download metadata from metabolights and put those file in current work dir
+library(Risa)
+test <- readISAtab()
+metadata <- test@study.files$MTBLS822
+# change the file name to load in the metabolites data
+data0 <- read.table(file = 'm_e07_qm_fia_maf.tsv', sep = '\t', skip = 1)
+head <- read.table(file = 'm_e07_qm_fia_maf.tsv',sep = '\t',nrows = 1)
+data <- data0[,match(metadata$`Sample Name`,head,nomatch = F)]
+colnames(data) <- head[,match(metadata$`Sample Name`,head,nomatch = F)]
+group <- metadata[match(colnames(data),metadata$`Sample Name`,nomatch = F),]
+mz <- data0[,head=='mass_to_charge']
+rt <- data0[,head=='retention_time']
+# construnt the list
+list <- list(data=data,group=group,mz=mz,rt=rt)
+```
+
+## Metabolomics WorkBench
+
+```{r mwb, eval=F}
+# target list from certain study
+list <- rmwf::getmwlist('ST000001')
+
+# Untargeted data
+# download demo files here: https://www.metabolomicsworkbench.org/data/DRCCMetadata.php?Mode=ProcessDownloadResults&StudyID=ST000553&AnalysisID=AN000845
+
+group <- rmwf::getmwfactor('ST000553')
+
+data <- read.table('ST000553_AN000846.txt',sep = '\t',header = T, nrows = 1983,na.strings = '\\N',row.names = 1)
+
+anno <- read.table('ST000553_AN000846.txt',sep = '\t',header = T, skip = 1985,na.strings = '\\N',row.names = 1)
+mz <- anno$quantified.m.z
+rt <- anno$retention.index*60
+
+list <- list(data=data,mz=mz,rt=rt,group=group)
+```
 
