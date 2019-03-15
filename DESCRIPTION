@@ -9,6 +9,7 @@ Authors@R:
 Description: Reproducilble Metabolomics WorkFlow(RMWF) is a R package for xcmsrocker. It will show the workflow templates and demo data for different R-based metabolomics software. User could use this package to make meta-analysis for different workflows.
 License: GPL (>= 3)
 Encoding: UTF-8
+Depends: R (>= 2.10)
 Imports: jsonlite
 LazyData: true
 RoxygenNote: 6.1.1

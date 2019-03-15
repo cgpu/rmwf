@@ -198,17 +198,11 @@ enviGCMS::plothm(mzrtfilter$data,lv=factor(mzrtfilter$group),index = c(1:20))
 
 ```{r ba}
 # visulize the batch effect
-mzrtsim::rlaplot(mzrt$data,lv = factor(mzrt$group))
-mzrtsim::ridgesplot(mzrt$data,lv = factor(mzrt$group))
+enviGCMS::plotrla(mzrt$data,lv = factor(mzrt$group))
+enviGCMS::plotridges(mzrt$data,lv = factor(mzrt$group))
 # get the simulation data and test on NOREVA
 sim <- mzrtsim::simmzrt(mzrt$data)
 mzrtsim::simdata(sim)
-# correct the batch effect by sva and no sv found
-mzrtcor <- mzrtsim::svacor(mzrt$data,lv = factor(mzrt$group))
-# visulize the batch effect correction
-# li <- mzrtsim::limmaplot(mzrtcor,lv = factor(mzrt$group$class))
-# return the corrected data
-# mzrt$data <- mzrtcor$dataCorrected
 ```
 
 # Statistical analysis
