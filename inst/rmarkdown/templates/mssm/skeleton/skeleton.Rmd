@@ -132,14 +132,13 @@ return(xset)
 This chunk is used to generate peaks list and related csv, xcmsset object, xcmsEIC object for further analysis.
 
 ```{r eval=F}
-library(enviGCMS)
 # get the xcmsset object from demo data
 path <- system.file("extdata/data", package = "rmwf")
 # use your own data
 # path <- 'path/to/your/file'
 srm <- getrtmz(path)
 # back up the xcmsset object, xcmsEIC object and peak list
-mzrt <- getmzrt(srm, name = 'srm', eic = T, type = 'mapo')
+mzrt <- enviGCMS::getmzrt(srm, name = 'srm', eic = T, type = 'mapo')
 ```
 
 # Data pre-processing
@@ -149,15 +148,14 @@ mzrt <- getmzrt(srm, name = 'srm', eic = T, type = 'mapo')
 Peaks list could be processed by experimental design in thie chunk.
 
 ```{r pf}
-library(enviGCMS)
 data(mzrt)
 # get the mean and rsd for each group
 mzrtm <- enviGCMS::getdoe(mzrt)
 gm <- mzrtm$groupmean
 gr <- mzrtm$grouprsd
 # find the blank group and pool QC group, demo data only have matrix blank
-srm <- grepl('plasma',colnames(gm))
-blk <- grepl('matrix',colnames(gm))
+srm <- grepl('NIST',colnames(gm))
+blk <- grepl('Matrix',colnames(gm))
 # pqc <- grepl('pool',colnames(gm))
 # filter by pool QC and blank's group mean intensity(pool QC should larger than three times of blank), return numbers and index
 # in demo data, use sample average intensity for each peak
@@ -180,8 +178,8 @@ mzrtfilter <- enviGCMS::getfilter(mzrt,rowindex = index,colindex = !qcindex, nam
 # you could load you eic and xset object, here is the demo data
 data("srmeic")
 data("srmxset")
-# EIC for m/z 107.0502 and retention time 102.6s
-plot(srmeic,srmxset,groupidx = 'M107.0502T102.6')
+# EIC for m/z 239.09114 and retention time 229.4050s
+plot(srmeic,srmxset,groupidx = 'M239.09114T229.4')
 # PCA
 enviGCMS::plotpca(data = mzrtfilter$data,lv = mzrtfilter$group)
 # mzrt plot
@@ -189,7 +187,7 @@ enviGCMS::plotmr(mzrtfilter)
 # RSD plot
 enviGCMS::plotrsd(mzrtfilter)
 # density plot
-enviGCMS::plotden(mzrtfilter$data,lv=mzrtfilter$group)
+enviGCMS::plotden(mzrtfilter$data,lv=mzrtfilter$group,ylim = c(0,1))
 # heatmap
 enviGCMS::plothm(mzrtfilter$data,lv=factor(mzrtfilter$group),index = c(1:20))
 ```
@@ -198,7 +196,7 @@ enviGCMS::plothm(mzrtfilter$data,lv=factor(mzrtfilter$group),index = c(1:20))
 
 ```{r ba}
 # visulize the batch effect
-enviGCMS::plotrla(mzrt$data,lv = factor(mzrt$group))
+enviGCMS::plotrla(mzrt$data,lv = as.factor(mzrt$group))
 enviGCMS::plotridges(mzrt$data,lv = factor(mzrt$group))
 # get the simulation data and test on NOREVA
 sim <- mzrtsim::simmzrt(mzrt$data)
@@ -312,4 +310,3 @@ rt <- anno$retention.index*60
 
 list <- list(data=data,mz=mz,rt=rt,group=group)
 ```
-
