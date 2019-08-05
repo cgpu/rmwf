@@ -246,6 +246,7 @@ mz <- mzrtfilter$mz
 time <- mzrtfilter$rt
 data <- as.data.frame(cbind(mz, time, data))
 data <- unique(data)
+num_nodes = 4
 xMSannotator::multilevelannotation(
                                         dataA = data,
                                         max.mz.diff = 5,
