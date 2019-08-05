@@ -59,7 +59,6 @@ This chunk could be run after you have `para.RData` from last chunk.
 
 ```{r eval=F}
 library(xcms)
-library(Rmpi)
 library(stringr)
 # here we use pre-optimized IPO parameters
 data('para')
