@@ -24,7 +24,6 @@ path <- system.file("extdata/", package = "rmwf")
 ```{r xcms}
 xcms <- enviGCMS::getdata(path,pmethod = "hplchqtof",minfrac = 1)
 library(xcms)
-library(Rmpi)
 library(stringr)
 getrtmz <- function(path,index = NULL){
   load('para.RData')
@@ -92,9 +91,72 @@ return(xset)
 srm2 <- getrtmz(path)
 ```
 
-## apLCMS
+-----
+
+# Peak selection
+
+## Wrapgroup
 
 ```{r}
-
+BiocParallel::SnowParam()
+ptm <- proc.time()
+path <- system.file("extdata/", package = "rmwf")
+xset <- xsetplus::getopqtofdata(path = path,ppm = 10,BPPARAM = BiocParallel::SerialParam())
+proc.time() - ptm
+library(doParallel)
+cl = makeCluster(detectCores() - 1)
+registerDoParallel(cl)
+library(warpgroup)
+library(xcms)
+xr.l = bplapply(xset@filepaths, xcmsRaw, profstep=0)
+xs.warpgroup = group.warpgroup(xset, xr.l = xr.l, rt.max.drift = 20, ppm.max.drift = 3, rt.aligned.lim = 5,smooth.n = 5)
+saveRDS(xs.warpgroup,file = 'peak.RDS')
+saveRDS(xset,file = 'peakraw.RDS')
 ```
 
+## Compare pmd/CAMERA/Ramcluster
+
+```{r}
+library(rmwf)
+data("srmxset")
+data("srmeic")
+srmxset@filepaths <- list.files(path,full.names = T,recursive = T)
+
+# CAMERA
+xsa <- CAMERA::annotate(srmxset, perfwhm=0.7, cor_eic_th=0.75,
+ppm=10, polarity="positive")
+peaklist <- CAMERA::getPeaklist(xsa)
+
+peaklist$meanpeak <- apply(peaklist[,c(16:20)],1,mean)
+
+library(tidyverse)
+stdcamera <- peaklist %>%
+    group_by(pcgroup) %>%
+    filter(meanpeak == max(meanpeak)) %>%
+    ungroup()
+
+allpeak <- paste0(round(z$mz,4),'@',round(z$rt))
+camerapeak <- paste0(round(stdcamera$mz,4),'@',round(stdcamera$rt))
+camerapeak1 <- paste0(round(stdcamera$mz,2),'@',round(stdcamera$rt,-1))
+
+# RAMClustR
+rcp <- RAMClustR::ramclustR(srmxset)
+RC <- RAMClustR::do.findmain(rcp, mode = "positive", mzabs.error = 0.02, ppm.error = 10)
+meanpeak <- apply(t(rcp$MSdata),1,mean)
+df <-  cbind.data.frame(mz = rcp$fmz, rt = rcp$frt, cluster = rcp$featclus,meanpeak)
+
+stdramcluster <- df %>%
+    group_by(cluster) %>%
+    filter(meanpeak == max(meanpeak)) %>%
+    ungroup()
+
+ramclusterpeak <- paste0(round(stdramcluster$mz,4),'@',round(stdramcluster$rt))
+ramclusterpeak1 <- paste0(round(stdramcluster$mz,2),'@',round(stdramcluster$rt,-1))
+
+# pmd
+mzrt <- enviGCMS::getmzrt(srmxset)
+mzrt <- pmd::globalstd(mzrt,ng=NULL)
+pmdpeak <- paste0(round(mzrt$mz[mzrt$stdmassindex],4),'@',round(mzrt$rt[mzrt$stdmassindex]))
+pmdpeak1 <- paste0(round(mzrt$mz[mzrt$stdmassindex],2),'@',round(mzrt$rt[mzrt$stdmassindex],-1))
+
+```

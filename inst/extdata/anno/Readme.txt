@@ -1,5 +1,0 @@
-[1] "Output files description:"
-[1] "Stage1.csv includes clustering of features based on intensity and retention time without annotations"
-[1] "DBresults/Stage2.csv includes clustering results along with simple m/z based database matching"
-[1] "DBresults/Stage3.csv includes scores for annotations assigned in stage 2 based on multiple criteria"
-[1] "DBresults/Stage4.csv and DBresults/Stage5.csv include the confidence levels before and after redundancy (multiple matches) filtering, respectively"
