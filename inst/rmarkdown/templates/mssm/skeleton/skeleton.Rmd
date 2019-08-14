@@ -272,9 +272,11 @@ pmd::runPMD()
 
 ## PMDDA analysis
 
+Generate target list for MS/MS analysis from pmd analysis
+
 ```{r}
 data("mzrt")
-x <- globalstd(mzrt,ng=NULL)
+x <- pmd::globalstd(mzrt,ng=NULL)
 
 pmdtarget <- function(list,Dppm = 20,Drt = 0.5,ce = NA, name = 'target',n=NULL){
         head <-  c('On', 'Prec. m/z', 'Delta m/z (ppm)','Z', 'Prec. Type', 'Ret. Time (min)', 'Delta Ret. Time (min)', 'Iso. Width', 'Collision Energy')
@@ -325,7 +327,7 @@ targetsep <- function(rt,Drt,n=6){
         }
         return(inji)
 }
-zzz <- pmdtarget(x,n=6,Drt = 0.1)
+zzz <- pmdtarget(x,n=6,Drt = 0.2)
 ```
 
 
