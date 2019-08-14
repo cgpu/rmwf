@@ -161,13 +161,33 @@ blk <- grepl('Matrix',colnames(gm))
 sum(indexmean <- apply(gm,1,function(x) all(x[srm]>= 3*x[blk])))
 # filt by pool qc rsd%, return numbers and index
 # in demo data, use sample average intensity for each peak
+# mean rsd analysis
+library(tidyverse)
+a <- cbind.data.frame(NISTmean = gm[,1],NISTrsd = gr[,1])
+p <- ggplot(a,aes(x=log10(NISTmean),y=NISTrsd)) +
+        ggtitle("Mean vs. RSD%") +
+        xlab("log10(Mean)") +
+        ylab("rsd%") 
+# Visualization 1
+p1 <-  p + 
+  geom_point(alpha = 0.5, colour="orange")+
+        geom_density2d()
+p1
+# Visualization 2
+p2 <- p +
+  stat_bin_hex(colour="white", na.rm=TRUE) +
+  scale_fill_gradientn(colours=c("red","orange"), name = "Frequency", na.value=NA)
+p2
+# Visualization 3
+smoothScatter(x=log10(a$NISTmean),y=a$NISTrsd)
+# select rsd% cutoff around 30
 rsdcf <- 30
 sum(indexrsd <- apply(gr,1,function(x) ifelse(is.na(x[srm]),T,x[srm]<rsdcf)))
 # overlap with rsd% and mean filter
 sum(index <- indexmean&indexrsd)
 
 # new list, update group and remove pool qc/blk and save the new csv file
-qcindex <- grepl('Matrix',mzrt$group) | grepl('pool',mzrt$group)
+qcindex <- grepl('blank',mzrt$group) | grepl('pool',mzrt$group)
 mzrtfilter <- enviGCMS::getfilter(mzrt,rowindex = index,colindex = !qcindex, name = 'lif', type = 'm')
 ```
 
@@ -189,6 +209,9 @@ enviGCMS::plotrsd(mzrtfilter)
 enviGCMS::plotden(mzrtfilter$data,lv=mzrtfilter$group,ylim = c(0,1))
 # heatmap
 enviGCMS::plothm(mzrtfilter$data,lv=factor(mzrtfilter$group),index = c(1:20))
+# TSNE
+# rtsne_out <- Rtsne::Rtsne(t(mzrtfilter$data))
+# plot(rtsne_out)
 ```
 
 ## Normalization (Optional)
@@ -203,6 +226,43 @@ mzrtsim::simdata(sim)
 ```
 
 # Statistical analysis
+
+## Linear regression(not for demo dataset)
+
+```{r eval=F}
+# build the model
+# for data with subject and time points in dataf
+anovamixed <- function(x){
+    ls1 <- lme4::lmer(x~time+(time|subject))
+    ls2 <- lme4::lmer(x~1+(time|subject))
+    ls <- summary(ls1)
+    t <- anova(ls1,ls2)
+    return(c(t$`Pr(>Chisq)`[2],ls$coefficients[2,1]))
+}
+a <- apply(dataf,1,anovamixed)
+# FDR control
+padjust <- p.adjust(a[1,],method = 'BH')
+
+sum(padjust<0.05&a[2,]>0)
+sum(padjust<0.05&a[2,]<0)
+# get the peaks with changes
+datap <- dataf[padjust<0.05&a[2,]>0,]
+datan <- dataf[padjust<0.05&a[2,]<0,]
+rownames(datan) <- rownames(dataf)[padjust<0.05&a[2,]<0]
+
+# for multiple group nlme model and table output
+result <- ndf %>%
+        as.tibble() %>%
+        nest(-group) %>%
+        mutate(model = map(data,~ lme(values ~ factor1+factor2+factor3-1,random=~1|sample,data = .)),tidy = map(model,tidy,effects = 'fixed')) %>%
+        unnest(tidy)
+names(result$model) <- result$group
+table <- result$model %>%
+        huxreg(tidy_args = list(effects = 'fixed'))
+quick_docx(table,file = 'table.docx')
+```
+
+## machine learning
 
 ```{r sa}
 library(caret)
@@ -274,8 +334,7 @@ pmd::runPMD()
 Generate target list for MS/MS analysis from pmd analysis
 
 ```{r}
-data("mzrt")
-x <- pmd::globalstd(mzrt,ng=NULL)
+x <- pmd::globalstd(mzrtfilter,ng=NULL)
 
 pmdtarget <- function(list,Dppm = 20,Drt = 0.5,ce = NA, name = 'target',n=NULL){
         head <-  c('On', 'Prec. m/z', 'Delta m/z (ppm)','Z', 'Prec. Type', 'Ret. Time (min)', 'Delta Ret. Time (min)', 'Iso. Width', 'Collision Energy')
@@ -329,6 +388,18 @@ targetsep <- function(rt,Drt,n=6){
 zzz <- pmdtarget(x,n=6,Drt = 0.2)
 ```
 
+# Network analysis
+
+```{r}
+library(qgraph)
+data <- x$data
+cormat <- cor_auto(x$data)
+Graph_pcor <- qgraph(cormat, graph = "pcor", layout = "spring")
+Graph_pcor <- qgraph(cormat, graph = "pcor", layout = "spring", threshold = "bonferroni",
+                     sampleSize = nrow(data), alpha = 0.05)
+Graph_lasso <- qgraph(cormat, graph = "glasso", layout = "spring", tuning = 0.25,
+                      sampleSize = nrow(data))
+```
 
 # Connetion with other online database
 

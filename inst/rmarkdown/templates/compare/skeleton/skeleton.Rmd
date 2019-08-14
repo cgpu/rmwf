@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(enviGCMS)
 # get the xcmsset object from demo data
-path <- system.file("extdata/", package = "rmwf")
+path <- system.file("extdata/data", package = "rmwf")
 ```
 
 ## XCMS
@@ -159,4 +159,9 @@ mzrt <- pmd::globalstd(mzrt,ng=NULL)
 pmdpeak <- paste0(round(mzrt$mz[mzrt$stdmassindex],4),'@',round(mzrt$rt[mzrt$stdmassindex]))
 pmdpeak1 <- paste0(round(mzrt$mz[mzrt$stdmassindex],2),'@',round(mzrt$rt[mzrt$stdmassindex],-1))
 
+library('VennDiagram')
+library('scales')
+
+list <- list(pmdpeak1,camerapeak1,pmdpeak1)
+venn.diagram(list,'venn.png',fill=hue_pal()(3),margin=c(.05,.05,.05,.05),imagetype = 'png')
 ```
